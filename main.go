@@ -20,7 +20,7 @@ var db *gorm.DB
 
 type User struct {
 	ID			uint	`gorm:"primaryKey"`
-	Username	string
+	Username	string	`gorm:"unique"`
 	Name 		string
 	Surname		string
 	Password 	string
@@ -65,9 +65,18 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		IsAdmin: user.IsAdmin,
 	}
 
-	fmt.Println(newUser)
-	db.Create(&newUser)
-	fmt.Println("New User is added.")
+	e := db.Create(&newUser)
+
+	if e != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		errResp := map[string]string{"message": "Already exist username"}
+		jsonBody, _ := json.Marshal(errResp)
+		w.Write(jsonBody)
+	} else {
+		fmt.Println("New User is added.")
+	}
+
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
