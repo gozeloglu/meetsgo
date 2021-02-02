@@ -116,6 +116,28 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GET Method
+// Retrieves all users
+// @returns List of JSON objects which includes users
+// @returns Error message if users cannot retrieved
+func getUsers(w http.ResponseWriter, r *http.Request)  {
+
+	var users []User
+	result := db.Select([]string{"id", "username", "name", "surname", "email", "age","is_admin"}).Find(&users)
+
+	w.Header().Set("Content-Type", "application/json")
+	if result.Error != nil {
+		w.WriteHeader(http.StatusNotFound)
+		res := map[string]string{"message": "Users could not retrieved"}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		resBody, _ := json.Marshal(users)
+		w.Write(resBody)
+	}
+}
+
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
 }
@@ -125,6 +147,7 @@ func handleRequests() {
 	router.HandleFunc("/", hello)
 	router.HandleFunc("/user/create", createUser).Methods("POST")
 	router.HandleFunc("/user/{username}", getUser).Methods("GET")
+	router.HandleFunc("/users", getUsers).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {
