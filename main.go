@@ -2,10 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"golang.org/x/crypto/bcrypt"
-
 	"fmt"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"os"
@@ -41,6 +40,8 @@ type Meetup struct {
 
 // POST Method
 // Creates and saves a new user on the database
+// @returns Saved user data in JSON if it is saved successfully
+// @returns Error message if it is not saved successfully
 // TODO Error handling
 // TODO Refactoring - http/net & gorm functions
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -87,8 +88,32 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GET Method
+// Retrieves the user that given username
+// Password does not retrieve
+// @returns JSON object that includes user information if it is found
+// @returns Error message in JSON object if it is not found
 func getUser(w http.ResponseWriter, r *http.Request) {
-	// TODO Get User 
+
+	// Get request parameter from URL
+	vars := mux.Vars(r)
+	key := vars["username"]
+	var user User
+
+	// Fetch user data by comparing given username
+	result := db.Where("username = ?", key).Select([]string{"id", "username", "name", "surname", "email", "age","is_admin"}).First(&user)
+
+	w.Header().Set("Content-Type", "application/json")
+	if result.Error != nil {
+		w.WriteHeader(http.StatusNotFound)
+		res := map[string]string{"message": "User could not found"}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		resBody, _ := json.Marshal(user)
+		w.Write(resBody)
+	}
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +124,7 @@ func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", hello)
 	router.HandleFunc("/user/create", createUser).Methods("POST")
+	router.HandleFunc("/user/{username}", getUser).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {
