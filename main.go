@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-
 	//"bytes"
 	//"encoding/json"
 	"fmt"
@@ -65,18 +64,21 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		IsAdmin: user.IsAdmin,
 	}
 
-	e := db.Create(&newUser)
+	result := db.Create(&newUser)
 
-	if e != nil {
+	if result.Error != nil {
+		fmt.Println(result.Error)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
 		errResp := map[string]string{"message": "Already exist username"}
 		jsonBody, _ := json.Marshal(errResp)
 		w.Write(jsonBody)
 	} else {
-		fmt.Println("New User is added.")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		respJson, _ := json.Marshal(newUser)
+		w.Write(respJson)
 	}
-
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
