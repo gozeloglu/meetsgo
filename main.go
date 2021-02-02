@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	//"bytes"
-	//"encoding/json"
+	"golang.org/x/crypto/bcrypt"
+
 	"fmt"
 	"github.com/gorilla/mux"
 	"log"
@@ -43,7 +43,6 @@ type Meetup struct {
 // Creates and saves a new user on the database
 // TODO Error handling
 // TODO Refactoring - http/net & gorm functions
-// TODO Encrypt password before storing data
 func createUser(w http.ResponseWriter, r *http.Request) {
 	var user User
 	err := json.NewDecoder(r.Body).Decode(&user)
@@ -54,11 +53,18 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	// Encrypt password
+	hash, hashErr := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+
+	if hashErr != nil {
+		log.Fatal(hashErr)
+	}
+
 	newUser := User{
 		Username: user.Username,
 		Name: user.Name,
 		Surname: user.Surname,
-		Password: user.Password,
+		Password: string(hash),
 		Email: user.Email,
 		Age: user.Age,
 		IsAdmin: user.IsAdmin,
@@ -79,6 +85,10 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		respJson, _ := json.Marshal(newUser)
 		w.Write(respJson)
 	}
+}
+
+func getUser(w http.ResponseWriter, r *http.Request) {
+	// TODO Get User 
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
