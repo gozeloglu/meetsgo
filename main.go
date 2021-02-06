@@ -17,25 +17,25 @@ import (
 var db *gorm.DB
 
 type User struct {
-	ID			uint	`gorm:"primaryKey"`
-	Username	string	`gorm:"unique"`
-	Name 		string
-	Surname		string
-	Password 	string
-	Email		string
-	Age 		int
-	IsAdmin		bool
+	ID       uint   `gorm:"primaryKey"`
+	Username string `gorm:"unique"`
+	Name     string
+	Surname  string
+	Password string
+	Email    string
+	Age      int
+	IsAdmin  bool
 }
 
 type Meetup struct {
-	ID 			uint	`gorm:"primaryKey;autoIncrement:true"`
-	MeetupName	string
-	MeetupDetails	string
-	StartDate	time.Time
-	EndDate		time.Time
-	Address 	string
-	Quota		int
-	RegisteredUserCount	int
+	ID                  uint `gorm:"primaryKey;autoIncrement:true"`
+	MeetupName          string
+	MeetupDetails       string
+	StartDate           time.Time
+	EndDate             time.Time
+	Address             string
+	Quota               int
+	RegisteredUserCount int
 }
 
 // POST Method
@@ -63,12 +63,12 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 
 	newUser := User{
 		Username: user.Username,
-		Name: user.Name,
-		Surname: user.Surname,
+		Name:     user.Name,
+		Surname:  user.Surname,
 		Password: string(hash),
-		Email: user.Email,
-		Age: user.Age,
-		IsAdmin: user.IsAdmin,
+		Email:    user.Email,
+		Age:      user.Age,
+		IsAdmin:  user.IsAdmin,
 	}
 
 	result := db.Create(&newUser)
@@ -101,7 +101,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	var user User
 
 	// Fetch user data by comparing given username
-	result := db.Where("username = ?", key).Select([]string{"id", "username", "name", "surname", "email", "age","is_admin"}).First(&user)
+	result := db.Where("username = ?", key).Select([]string{"id", "username", "name", "surname", "email", "age", "is_admin"}).First(&user)
 
 	w.Header().Set("Content-Type", "application/json")
 	if result.Error != nil {
@@ -120,10 +120,10 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 // Retrieves all users
 // @returns List of JSON objects which includes users
 // @returns Error message if users cannot retrieved
-func getUsers(w http.ResponseWriter, r *http.Request)  {
+func getUsers(w http.ResponseWriter, r *http.Request) {
 
 	var users []User
-	result := db.Select([]string{"id", "username", "name", "surname", "email", "age","is_admin"}).Find(&users)
+	result := db.Select([]string{"id", "username", "name", "surname", "email", "age", "is_admin"}).Find(&users)
 
 	w.Header().Set("Content-Type", "application/json")
 	if result.Error != nil {
@@ -138,6 +138,55 @@ func getUsers(w http.ResponseWriter, r *http.Request)  {
 	}
 }
 
+// POST Method
+// Login the system as a user
+// Retrieve the user and compare the password
+// @returns Error message if username/email is not valid
+// or password is not correct
+// @returns User data as a JSON object
+func login(w http.ResponseWriter, r *http.Request) {
+	var user User
+	var dbUser User
+	err := json.NewDecoder(r.Body).Decode(&user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	email := user.Email
+	username := user.Username
+	password := user.Password
+
+	db.Where("username = ?", username).Or("email = ?", email).Find(&dbUser)
+
+	w.Header().Set("Content-Type", "application/json")
+	if len(dbUser.Name) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		var errMsg string
+		if len(username) != 0 {
+			errMsg = "Username could not found"
+		} else {
+			errMsg = "Email could not found"
+		}
+		res := map[string]string{"message": errMsg}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+		return
+	}
+
+	if hashErr := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(password)); hashErr != nil {
+		w.WriteHeader(http.StatusNotFound)
+		res := map[string]string{"message": "Password is not correct"}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		resBody, _ := json.Marshal(dbUser)
+		w.Write(resBody)
+	}
+}
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
 }
@@ -148,6 +197,7 @@ func handleRequests() {
 	router.HandleFunc("/user/create", createUser).Methods("POST")
 	router.HandleFunc("/user/{username}", getUser).Methods("GET")
 	router.HandleFunc("/users", getUsers).Methods("GET")
+	router.HandleFunc("/user/login", login).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {
@@ -156,7 +206,7 @@ func main() {
 	USERNAME := os.Getenv("PG_USERNAME")
 	PASSWORD := os.Getenv("PG_PASSWORD")
 
-	dsn := "host=localhost user=" + USERNAME + " password=" + PASSWORD +" dbname=meetsup port=5432 sslmode=disable TimeZone=Europe/Istanbul"
+	dsn := "host=localhost user=" + USERNAME + " password=" + PASSWORD + " dbname=meetsup port=5432 sslmode=disable TimeZone=Europe/Istanbul"
 	DB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
