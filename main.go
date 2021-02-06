@@ -73,16 +73,14 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 
 	result := db.Create(&newUser)
 
+	w.Header().Set("Content-Type", "application/json")
 	if result.Error != nil {
-		fmt.Println(result.Error)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
 		errResp := map[string]string{"message": "Already exist username"}
 		jsonBody, _ := json.Marshal(errResp)
 		w.Write(jsonBody)
 	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusCreated)
 		respJson, _ := json.Marshal(newUser)
 		w.Write(respJson)
 	}
@@ -187,6 +185,61 @@ func login(w http.ResponseWriter, r *http.Request) {
 		w.Write(resBody)
 	}
 }
+
+// PUT Method
+// Updates the user profile
+// @returns Error message if the user could not updated
+// @returns Updated User data as a JSON object
+func updateUserProfile(w http.ResponseWriter, r *http.Request)  {
+	// Get username from URL
+	vars := mux.Vars(r)
+	username := vars["username"]
+
+	var newUser User
+	err := json.NewDecoder(r.Body).Decode(&newUser)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	// Find and assign data to *user
+	var user User
+	result := db.Where("username = ?", username).Find(&user)
+
+	// Check username is exist or not
+	if user.Username == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		res := map[string]string{"message": "Username could not find"}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+		return
+	}
+
+	// Update with new data
+	user.Username = newUser.Username
+	user.Name = newUser.Name
+	user.Surname = newUser.Surname
+	user.Email = newUser.Email
+	user.Age = newUser.Age
+
+	result = db.Save(&user)
+
+	w.Header().Set("Content-Type", "application/json")
+	if result.Error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		res := map[string]string{"message": "User profile could not updated"}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		resBody, _ := json.Marshal(user)
+		w.Write(resBody)
+	}
+}
+
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
 }
@@ -198,6 +251,7 @@ func handleRequests() {
 	router.HandleFunc("/user/{username}", getUser).Methods("GET")
 	router.HandleFunc("/users", getUsers).Methods("GET")
 	router.HandleFunc("/user/login", login).Methods("POST")
+	router.HandleFunc("/user/update/{username}", updateUserProfile).Methods("PUT")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {
