@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
@@ -312,6 +313,30 @@ func getMeetups(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GET Method
+// Retrieve the meetup details by meetup ID
+// @returns Error message if meetup does not exist in db
+// @returns JSON object that includes Meetup details
+func meetupDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	meetupID := vars["meetup_id"]
+
+	var meetup Meetup
+	result := db.First(&meetup, meetupID)
+
+	w.Header().Set("Content-Type", "application/json")
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		res := map[string]string{"message": "Meetup ID does not exist."}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		resBody, _ := json.Marshal(meetup)
+		w.Write(resBody)
+	}
+}
+
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
 }
@@ -330,6 +355,7 @@ func handleRequests() {
 	// Meetup
 	router.HandleFunc("/meetup/create/{admin_username}", createMeetup).Methods("POST")
 	router.HandleFunc("/meetups", getMeetups).Methods("GET")
+	router.HandleFunc("/meetup/details/{meetup_id}", meetupDetails).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {
