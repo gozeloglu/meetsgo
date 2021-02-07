@@ -290,6 +290,28 @@ func createMeetup(w http.ResponseWriter, r *http.Request)  {
 	}
 }
 
+// GET Method
+// Retrieves all meetups
+// @returns List of JSON objects which includes meetups
+// @returns Error message if meetups could not retrieved
+func getMeetups(w http.ResponseWriter, r *http.Request) {
+	// TODO Protect retrieving []User
+	var meetups []Meetup
+	result := db.Select([]string{"id", "meetup_name", "meetup_details", "start_date", "end_date", "address", "quota", "registered_user_count"}).Find(&meetups)
+
+	w.Header().Set("Content-Type", "application/json")
+	if result.Error != nil {
+		w.WriteHeader(http.StatusNotFound)
+		res := map[string]string{"message": "Meetups could not fetched."}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		resBody, _ := json.Marshal(meetups)
+		w.Write(resBody)
+	}
+}
+
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
 }
@@ -307,6 +329,7 @@ func handleRequests() {
 
 	// Meetup
 	router.HandleFunc("/meetup/create/{admin_username}", createMeetup).Methods("POST")
+	router.HandleFunc("/meetups", getMeetups).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {
