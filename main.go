@@ -25,6 +25,7 @@ type User struct {
 	Email    string
 	Age      int
 	IsAdmin  bool
+	Meetups []*Meetup `gorm:"many2many:user_meetups;"`
 }
 
 type Meetup struct {
@@ -36,6 +37,7 @@ type Meetup struct {
 	Address             string
 	Quota               int
 	RegisteredUserCount int
+	Users []*User `gorm:"many2many:user_meetups;"`
 }
 
 // POST Method
@@ -240,6 +242,54 @@ func updateUserProfile(w http.ResponseWriter, r *http.Request)  {
 	}
 }
 
+// POST Method
+// Meetup creation is handled here
+// Only admins can create a new meetup
+// @returns Error message if user has not admin authorization
+// @returns Error message if JSON object could not decode
+// @returns Error message if meetup could not save on db
+// @returns JSON response after adding new meetup to db
+func createMeetup(w http.ResponseWriter, r *http.Request)  {
+	vars := mux.Vars(r)
+	adminUsername := vars["admin_username"]
+
+	// Check user is admin or not
+	var user User
+	result := db.Where("username = ? AND is_admin = ?",adminUsername, true).Find(&user)
+
+	if user.Username == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		res := map[string]string{"message": "You are not allowed to create a new meetup. Only admins can create a new meetup"}
+		errBody, _ :=json.Marshal(res)
+		w.Write(errBody)
+		return
+	}
+
+	var meetup Meetup
+	err := json.NewDecoder(r.Body).Decode(&meetup)
+
+	if err != nil {
+		http.Error(w, "Error occurred while decoding JSON", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	result = db.Create(&meetup)
+
+	w.Header().Set("Content-Type", "application/json")
+	if result.Error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := map[string]string{"message": "Meetup could not created"}
+		jsonBody, _ := json.Marshal(errResp)
+		w.Write(jsonBody)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+		respBody, _ := json.Marshal(meetup)
+		w.Write(respBody)
+	}
+}
+
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
 }
@@ -247,11 +297,16 @@ func hello(w http.ResponseWriter, r *http.Request) {
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", hello)
+
+	// User
 	router.HandleFunc("/user/create", createUser).Methods("POST")
 	router.HandleFunc("/user/{username}", getUser).Methods("GET")
 	router.HandleFunc("/users", getUsers).Methods("GET")
 	router.HandleFunc("/user/login", login).Methods("POST")
 	router.HandleFunc("/user/update/{username}", updateUserProfile).Methods("PUT")
+
+	// Meetup
+	router.HandleFunc("/meetup/create/{admin_username}", createMeetup).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {

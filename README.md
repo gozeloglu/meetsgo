@@ -17,8 +17,14 @@ MeetsGo is a REST API written in Go. It can be seen as basic REST API which hand
 
 ## API
 
+### User
+
 * Create User - `/user/create` - POST
 * Get User - `/user/{username}` - GET
 * Get Users - `/users` - GET 
 * Login - `/user/login` - POST
 * Update User Profile - `/user/update/{username}` - PUT
+
+### Meetup
+
+* Create Meetup - `/meetup/create/{admin_username}` - POST
