@@ -337,6 +337,46 @@ func meetupDetails(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DELETE Method
+// Deletes the meetup by given meetup ID
+// @returns Error message if meetup ID does not exist
+// @returns Error message if meetup could not deleted
+// @returns Success message if meetup deleted successfully
+func deleteMeetup(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	meetupID := vars["meetup_id"]
+
+	fmt.Println(meetupID)
+
+	// Check meetup ID exist or not
+	var meetup Meetup
+	result := db.First(&meetup, meetupID)
+
+	w.Header().Set("Content-Type", "application/json")
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		res := map[string]string{"message": "Meetup ID does not exist."}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+		return
+	}
+
+	result = db.Delete(&meetup, meetupID)
+
+	if result.Error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		res := map[string]string{"message": "Deletion was not successful"}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		resStr := `Meetup deleted successfully. Deleted Meetup ID: ` + meetupID
+		res := map[string]string{"message": resStr}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+	}
+}
+
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
 }
@@ -356,6 +396,7 @@ func handleRequests() {
 	router.HandleFunc("/meetup/create/{admin_username}", createMeetup).Methods("POST")
 	router.HandleFunc("/meetups", getMeetups).Methods("GET")
 	router.HandleFunc("/meetup/details/{meetup_id}", meetupDetails).Methods("GET")
+	router.HandleFunc("/meetup/delete/{meetup_id}", deleteMeetup).Methods("DELETE")
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 func main() {

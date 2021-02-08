@@ -30,3 +30,4 @@ MeetsGo is a REST API written in Go. It can be seen as basic REST API which hand
 * Create Meetup - `/meetup/create/{admin_username}` - POST
 * Get Meetups - `/meetups` - GET
 * Get Meetup Details - `/meetup/details/{meetup_id}` - GET
+* Delete Meetup - `/meetup/delete/{meetup_id}` - DELETE
