@@ -9,7 +9,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
+	"unicode"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -26,7 +28,7 @@ type User struct {
 	Email    string
 	Age      int
 	IsAdmin  bool
-	Meetups []*Meetup `gorm:"many2many:user_meetups;"`
+	Meetups  []*Meetup `gorm:"many2many:user_meetups;"`
 }
 
 type Meetup struct {
@@ -38,11 +40,25 @@ type Meetup struct {
 	Address             string
 	Quota               int
 	RegisteredUserCount int
-	Users []*User `gorm:"many2many:user_meetups;"`
+	Users               []*User `gorm:"many2many:user_meetups;"`
 }
+
+type InvalidReason int
+
+const (
+	IsValid        InvalidReason = 0
+	UsernameShort  InvalidReason = 1
+	NameEmpty      InvalidReason = 2
+	SurnameEmpty   InvalidReason = 3
+	PasswordShort  InvalidReason = 4
+	PasswordWeak   InvalidReason = 5
+	EmailINotValid InvalidReason = 6
+	AgeNotValid    InvalidReason = 7
+)
 
 // POST Method
 // Creates and saves a new user on the database
+// Checks the user data
 // @returns Saved user data in JSON if it is saved successfully
 // @returns Error message if it is not saved successfully
 // TODO Error handling
@@ -56,6 +72,33 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
+
+	isValidUser, reason := IsValidUser(user)
+
+	w.Header().Set("Content-Type", "application/json")
+	if !isValidUser {
+		w.WriteHeader(http.StatusBadRequest)
+		errResp := map[string]string{"message": "Bad JSON payload"}
+
+		if reason == UsernameShort {
+			errResp = map[string]string{"message": "Username is too short. There should be at least 4 characters."}
+		} else if reason == NameEmpty {
+			errResp = map[string]string{"message": "Name cannot be empty."}
+		} else if reason == SurnameEmpty {
+			errResp = map[string]string{"message": "Surname cannot be empty."}
+		} else if reason == PasswordShort {
+			errResp = map[string]string{"message": "Password is too short. There should be at least 8 characters."}
+		} else if reason == PasswordWeak {
+			errResp = map[string]string{"message": "Password is weak. There should be at least one letter, one digit, one symbol."}
+		} else if reason == EmailINotValid {
+			errResp = map[string]string{"message": "Email format is not correct"}
+		} else if reason == AgeNotValid {
+			errResp = map[string]string{"message": "Age cannot be negative"}
+		}
+		jsonBody, _ := json.Marshal(errResp)
+		w.Write(jsonBody)
+		return
+	}
 
 	// Encrypt password
 	hash, hashErr := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -76,7 +119,6 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 
 	result := db.Create(&newUser)
 
-	w.Header().Set("Content-Type", "application/json")
 	if result.Error != nil {
 		w.WriteHeader(http.StatusConflict)
 		errResp := map[string]string{"message": "Already exist username"}
@@ -193,7 +235,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 // Updates the user profile
 // @returns Error message if the user could not updated
 // @returns Updated User data as a JSON object
-func updateUserProfile(w http.ResponseWriter, r *http.Request)  {
+func updateUserProfile(w http.ResponseWriter, r *http.Request) {
 	// Get username from URL
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -250,19 +292,19 @@ func updateUserProfile(w http.ResponseWriter, r *http.Request)  {
 // @returns Error message if JSON object could not decode
 // @returns Error message if meetup could not save on db
 // @returns JSON response after adding new meetup to db
-func createMeetup(w http.ResponseWriter, r *http.Request)  {
+func createMeetup(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	adminUsername := vars["admin_username"]
 
 	// Check user is admin or not
 	var user User
-	result := db.Where("username = ? AND is_admin = ?",adminUsername, true).Find(&user)
+	result := db.Where("username = ? AND is_admin = ?", adminUsername, true).Find(&user)
 
 	if user.Username == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		res := map[string]string{"message": "You are not allowed to create a new meetup. Only admins can create a new meetup"}
-		errBody, _ :=json.Marshal(res)
+		errBody, _ := json.Marshal(res)
 		w.Write(errBody)
 		return
 	}
@@ -379,6 +421,66 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello Hit")
+}
+
+// Checks the email is valid or not
+func IsValidEMail(email string) bool {
+	if len(email) < 3 && len(email) > 255 {
+		return false
+	}
+	emailRegex, _ := regexp.Compile("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")
+
+	return emailRegex.MatchString(email)
+}
+
+// Checks the password
+// There should be at least 1 letter, 1 digit, 1 symbol
+func IsValidPassword(password string) (bool, InvalidReason) {
+	if len(password) < 8 {
+		return false, PasswordShort
+	}
+
+	hasLetter := false
+	hasNumber := false
+	hasSymbol := false
+	for _, char := range password {
+		if unicode.IsLetter(char) {
+			hasLetter = true
+		} else if unicode.IsNumber(char) {
+			hasNumber = true
+		} else if unicode.IsSymbol(char) || unicode.IsPunct(char) {
+			hasSymbol = true
+		}
+		if hasLetter && hasNumber && hasSymbol {
+			return true, IsValid
+		}
+	}
+	if !hasLetter || !hasNumber || !hasSymbol {
+		return false, PasswordWeak
+	} else {
+		return true, IsValid
+	}
+}
+
+// Checks the user data
+func IsValidUser(user User) (bool, InvalidReason) {
+
+	if len(user.Username) < 4 {
+		return false, UsernameShort
+	} else if len(user.Name) == 0 {
+		return false, NameEmpty
+	} else if len(user.Surname) == 0 {
+		return false, SurnameEmpty
+	}
+	_, reason := IsValidPassword(user.Password)
+	if reason != IsValid {
+		return false, reason
+	} else if !IsValidEMail(user.Email) {
+		return false, EmailINotValid
+	} else if user.Age < 0 {
+		return false, AgeNotValid
+	}
+	return true, IsValid
 }
 
 func handleRequests() {
