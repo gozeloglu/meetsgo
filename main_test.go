@@ -14,6 +14,12 @@ type Password struct {
 	result   bool
 }
 
+type TestUser struct {
+	user    User
+	isValid bool
+	reason  InvalidReason
+}
+
 func TestIsValidEmail(t *testing.T) {
 	var emails [10]Email
 
@@ -56,4 +62,31 @@ func TestIsValidPassword(t *testing.T) {
 			t.Errorf("%s is checked, got %t, want: %t", passwords[i].password, res, passwords[i].result)
 		}
 	}
+}
+
+func TestIsValidUser(t *testing.T) {
+	var testUsers [10]TestUser
+	var emptyMeetupArr []*Meetup
+
+	testUsers[0] = TestUser{User{1, "", "john", "jack", "asdf1234.-", "a@mail.com", 10, false, emptyMeetupArr}, false, UsernameShort}
+	testUsers[1] = TestUser{User{1, "j", "john", "jack", "asdf1234.-", "a@mail.com", 10, false, emptyMeetupArr}, false, UsernameShort}
+	testUsers[2] = TestUser{User{1, "john", "", "jack", "asdf1234.-", "a@mail.com", 10, false, emptyMeetupArr}, false, NameEmpty}
+	testUsers[3] = TestUser{User{1, "john", "john", "", "asdf1234.-", "a@mail.com", 10, false, emptyMeetupArr}, false, SurnameEmpty}
+	testUsers[4] = TestUser{User{1, "john", "john", "jack", "", "a@mail.com", 10, false, emptyMeetupArr}, false, PasswordShort}
+	testUsers[5] = TestUser{User{1, "john", "john", "jack", "asdf1234", "a@mail.com", 10, false, emptyMeetupArr}, false, PasswordWeak}
+	testUsers[6] = TestUser{User{1, "john", "john", "jack", "asdf", "a@mail.com", 10, false, emptyMeetupArr}, false, PasswordShort}
+	testUsers[7] = TestUser{User{1, "john", "john", "jack", "asdf1234.-", "a@mail.", 10, false, emptyMeetupArr}, false, EmailINotValid}
+	testUsers[8] = TestUser{User{1, "john", "john", "jack", "asdf1234.-", "a@mail.com", -1, false, emptyMeetupArr}, false, AgeNotValid}
+	testUsers[9] = TestUser{User{1, "john", "john", "jack", "asdf1234.-", "a@mail.com", 10, false, emptyMeetupArr}, true, IsValid}
+
+	for i := 0; i < len(testUsers); i++ {
+		isValid, reason := IsValidUser(testUsers[i].user)
+
+		if isValid != testUsers[i].isValid || reason != testUsers[i].reason {
+			t.Errorf("%v", testUsers[i])
+			t.Errorf("User is checked, got %t, want: %t", isValid, testUsers[i].isValid)
+			t.Errorf("User's reason, got %d, want: %d", reason, testUsers[i].reason)
+		}
+	}
+
 }
