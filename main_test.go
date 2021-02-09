@@ -5,11 +5,16 @@ import (
 )
 
 type Email struct {
-	email string
+	email  string
 	result bool
 }
 
-func TestIsValidEmail(t *testing.T)  {
+type Password struct {
+	password string
+	result   bool
+}
+
+func TestIsValidEmail(t *testing.T) {
 	var emails [10]Email
 
 	emails[0] = Email{"a@mail.co", true}
@@ -27,6 +32,28 @@ func TestIsValidEmail(t *testing.T)  {
 		res := IsValidEMail(emails[i].email)
 		if res != emails[i].result {
 			t.Errorf("Email is checked, got %t, want: %t", res, emails[i].result)
+		}
+	}
+}
+
+func TestIsValidPassword(t *testing.T) {
+	var passwords [10]Password
+
+	passwords[0] = Password{"", false}
+	passwords[1] = Password{"1", false}
+	passwords[2] = Password{"12345678", false}
+	passwords[3] = Password{"asdfghj", false}
+	passwords[4] = Password{"1234as.!", true}
+	passwords[5] = Password{"a", false}
+	passwords[6] = Password{".", false}
+	passwords[7] = Password{".12", false}
+	passwords[8] = Password{"asdf1234", false}
+	passwords[9] = Password{"aaaa1234.-", true}
+
+	for i := 0; i < len(passwords); i++ {
+		res, _ := IsValidPassword(passwords[i].password)
+		if res != passwords[i].result {
+			t.Errorf("%s is checked, got %t, want: %t", passwords[i].password, res, passwords[i].result)
 		}
 	}
 }
