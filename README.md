@@ -48,7 +48,7 @@ Database table structure is simple. There are two different table with different
 | 1  | GDG Ankara GoLang  | We are going to learn Go on live session. | 02.04.2021T12:00:00 | 02.04.2021T15:00:00| YouTube Channel | 100 | 13 |
 | 2  | GDG Ankara Flutter  | We are going to learn Flutter on live session. | 03.04.2021T12:00:00 | 03.04.2021T15:00:00| YouTube Channel | 100 | 7 | 
 | ... | ... | ... | ... | ... | ... | ... | ... |
-
+ 
 ## API
 
 ### User
