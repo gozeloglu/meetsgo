@@ -20,6 +20,11 @@ type TestUser struct {
 	reason  InvalidReason
 }
 
+type TestAdmin struct {
+	user 	User
+	isValid bool
+}
+
 func TestIsValidEmail(t *testing.T) {
 	var emails [10]Email
 
@@ -89,4 +94,20 @@ func TestIsValidUser(t *testing.T) {
 		}
 	}
 
+}
+
+func TestIsAdmin(t *testing.T) {
+	var testAdmins [2]TestAdmin
+	var emptyMeetupArr []*Meetup
+
+	testAdmins[0] = TestAdmin{User{1, "John", "john", "jack", "qwerasdf", "j@mail.com", 12, true, emptyMeetupArr}, true}
+	testAdmins[0] = TestAdmin{User{1, "John", "john", "jack", "qwerasdf", "j@mail.com", 12, false, emptyMeetupArr}, false}
+
+	for i := 0; i < len(testAdmins); i++ {
+		isValid := IsAdmin(testAdmins[i].user)
+
+		if isValid != testAdmins[i].isValid {
+			t.Errorf("User is checked, got %t, want: %t", isValid, testAdmins[i].isValid)
+		}
+	}
 }

@@ -201,6 +201,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	email := user.Email
 	username := user.Username
 	password := user.Password
+	isAdminReq := user.IsAdmin
 
 	db.Where("username = ?", username).Or("email = ?", email).Find(&dbUser)
 
@@ -214,6 +215,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 			errMsg = "Email could not found"
 		}
 		res := map[string]string{"message": errMsg}
+		resBody, _ := json.Marshal(res)
+		w.Write(resBody)
+		return
+	}
+
+	// Check the user is admin or not
+	if isAdminReq && !IsAdmin(dbUser) {
+		w.WriteHeader(http.StatusUnauthorized)
+		res := map[string]string{"message": "You are not admin."}
 		resBody, _ := json.Marshal(res)
 		w.Write(resBody)
 		return
@@ -483,6 +493,9 @@ func IsValidUser(user User) (bool, InvalidReason) {
 	return true, IsValid
 }
 
+func IsAdmin(user User) bool {
+	return user.IsAdmin
+}
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", hello)
@@ -493,6 +506,9 @@ func handleRequests() {
 	router.HandleFunc("/users", getUsers).Methods("GET")
 	router.HandleFunc("/user/login", login).Methods("POST")
 	router.HandleFunc("/user/update/{username}", updateUserProfile).Methods("PUT")
+
+	// Admin
+	router.HandleFunc("/admin/login/", login).Methods("POST")
 
 	// Meetup
 	router.HandleFunc("/meetup/create/{admin_username}", createMeetup).Methods("POST")
