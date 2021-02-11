@@ -31,6 +31,18 @@ You can install [`gorilla/mux`](https://github.com/gorilla/mux) package with the
 $ go get -u github.com/gorilla/mux
 ```
 
+To run the project, type the following command:
+
+```shell
+$ go run .
+```
+
+To run the test, type the following command:
+
+```shell
+$ go test
+```
+
 ## Database Schema
 
 Database table structure is simple. There are two different table with different attributes.
