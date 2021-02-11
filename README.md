@@ -77,3 +77,7 @@ Database table structure is simple. There are two different table with different
 * Get Meetups - `/meetups` - GET
 * Get Meetup Details - `/meetup/details/{meetup_id}` - GET
 * Delete Meetup - `/meetup/delete/{meetup_id}` - DELETE
+
+### Admin
+
+* Login - `admin/login` - POST
